@@ -4,59 +4,72 @@ using UnityEngine.InputSystem;
 
 public class PlayerMovement : PredictedIdentity<PlayerMovement.Input, PlayerMovement.State>
 {
-    [SerializeField] private PredictedRigidbody _rigidbody;
-    [SerializeField] private float _moveForce = 20f; // higher for testing
+    [Header("Refs")]
+    [SerializeField] private PredictedRigidbody _predictedRb;
+    [SerializeField] private PlayerInput _playerInput; // assign PlayerInput on the prefab (recommended)
 
+    [Header("Movement")]
+    [SerializeField] private float moveSpeed = 6f;
+    [SerializeField] private float accel = 25f;
+
+    private Rigidbody _rb;
     private Vector2 _moveInput;
 
-    // PlayerInput (Invoke Unity Events) -> Move
+    void Awake()
+    {
+        if (_predictedRb == null)
+            _predictedRb = GetComponentInChildren<PredictedRigidbody>();
+
+        if (_playerInput == null)
+            _playerInput = GetComponentInChildren<PlayerInput>(true);
+
+        // PredictedRigidbody sits on (or references) a Rigidbody. Grab it.
+        _rb = _predictedRb != null
+            ? _predictedRb.GetComponent<Rigidbody>()       // if PredictedRigidbody is on same GO as RB
+            : GetComponentInChildren<Rigidbody>();         // fallback
+
+        if (_rb == null)
+            Debug.LogError("No Rigidbody found. Assign PredictedRigidbody or add a Rigidbody.");
+    }
+
+    void Start()
+    {
+        // IMPORTANT: only the controlling instance should have local input enabled
+        if (_playerInput != null)
+            _playerInput.enabled = isController;
+    }
+
+    // Called by PlayerInput (Invoke Unity Events)
     public void OnMove(InputAction.CallbackContext ctx)
     {
+        // extra safety: ignore input if this isn't the controller
+        if (!isController) return;
         _moveInput = ctx.ReadValue<Vector2>();
-        // This only proves input is received by THIS instance
-        // Debug.Log($"MOVE: {_moveInput}");
     }
 
-    // This is called on the controlling instance to fill the input that gets predicted/sent
     protected override void GetFinalInput(ref Input input)
     {
-        input.direction = _moveInput;
-
-        // Ownership/debug (PurrNet uses lowercase fields)
-        if (isOwner && input.direction != Vector2.zero)
-            Debug.Log($"OWNER INPUT: {input.direction}  owner={owner} isOwner={isOwner} isController={isController}");
+        // only controller provides input, everyone else sends zero
+        input.direction = isController ? _moveInput : Vector2.zero;
     }
 
-    // This is the predicted simulation step
     protected override void Simulate(Input input, ref State state, float delta)
     {
-        if (input.direction != Vector2.zero)
-            Debug.Log($"SIMULATE: {input.direction}  owner={owner} isOwner={isOwner} isController={isController}");
+        if (_rb == null) return;
 
         Vector3 local = new Vector3(input.direction.x, 0f, input.direction.y);
-        Vector3 world = transform.TransformDirection(local);
-        world.y = 0f;
+        Vector3 wish = transform.TransformDirection(local);
+        wish.y = 0f;
 
-        // ForceMode.Acceleration style feel (mass independent) – PredictedRigidbody usually handles mass,
-        // so we just scale by delta here.
-        _rigidbody.AddForce(world.normalized * _moveForce * delta);
+        Vector3 v = _rb.linearVelocity;
+        Vector3 horiz = new Vector3(v.x, 0f, v.z);
+
+        Vector3 targetHoriz = wish.sqrMagnitude > 0.0001f ? wish.normalized * moveSpeed : Vector3.zero;
+        Vector3 newHoriz = Vector3.MoveTowards(horiz, targetHoriz, accel * delta);
+
+        _rb.linearVelocity = new Vector3(newHoriz.x, v.y, newHoriz.z);
     }
 
-    // Optional: periodic status log so you can see which instance owns what
-    private void Update()
-    {
-        if (Time.frameCount % 120 == 0)
-            Debug.Log($"STATUS: owner={owner} isOwner={isOwner} isController={isController}");
-    }
-
-    public struct State : IPredictedData<State>
-    {
-        public void Dispose() { }
-    }
-
-    public struct Input : IPredictedData
-    {
-        public Vector2 direction;
-        public void Dispose() { }
-    }
+    public struct State : IPredictedData<State> { public void Dispose() { } }
+    public struct Input : IPredictedData { public Vector2 direction; public void Dispose() { } }
 }
