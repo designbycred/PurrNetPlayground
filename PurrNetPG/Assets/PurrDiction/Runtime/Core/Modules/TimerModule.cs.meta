@@ -1,0 +1,9 @@
+fileFormatVersion: 2
+guid: a2906edd237bae743a43f3f9e2c31564
+AssetOrigin:
+  serializedVersion: 1
+  productId: 329734
+  packageName: 'PurrDiction: Client Side Prediction For PurrNet'
+  packageVersion: v1.2.2
+  assetPath: Assets/PurrDiction/Runtime/Core/Modules/TimerModule.cs
+  uploadId: 836848
