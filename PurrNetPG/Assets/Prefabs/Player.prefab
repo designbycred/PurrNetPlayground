@@ -491,9 +491,8 @@ MonoBehaviour:
   moveYParam: MoveY
   maxSpeed: 6
   smooth: 12
-  speedDeadzone: 0.03
-  debugLogs: 0
-  debugEveryNFrames: 120
+  moveDeadzone: 0.05
+  holdTime: 0.12
 --- !u!95 &8203273544469095326 stripped
 Animator:
   m_CorrespondingSourceObject: {fileID: 5866666021909216657, guid: 2faa610713d3b3c439473daa55e8c60a, type: 3}
