@@ -138,7 +138,6 @@ GameObject:
   - component: {fileID: -993988835561913178}
   - component: {fileID: 2306045312425605247}
   - component: {fileID: 7082551171456523202}
-  - component: {fileID: 967644286731919977}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -188,7 +187,7 @@ Rigidbody:
   m_GameObject: {fileID: 7252867893513336031}
   serializedVersion: 5
   m_Mass: 1
-  m_LinearDamping: 0
+  m_LinearDamping: 0.2
   m_AngularDamping: 0.05
   m_CenterOfMass: {x: 0, y: 0, z: 0}
   m_InertiaTensor: {x: 1, y: 1, z: 1}
@@ -352,12 +351,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 69e24d2a880994d4787f1a07d377b5f2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMovement
-  _repeatInputFactor: 0.8
-  _extrapolateInput: 1
-  _predictedRb: {fileID: 664991393859576068}
-  _playerInput: {fileID: 0}
+  _repeatInputFactor: 1
+  _extrapolateInput: 0
+  predictedRb: {fileID: 664991393859576068}
+  playerInput: {fileID: -993988835561913178}
   moveSpeed: 6
   accel: 20
+  brake: 60
+  stopEpsilon: 0.08
+  inputDeadzone: 0.05
 --- !u!136 &7082551171456523202
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -381,31 +383,6 @@ CapsuleCollider:
   m_Height: 2
   m_Direction: 1
   m_Center: {x: 0, y: 1, z: 0}
---- !u!114 &967644286731919977
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7252867893513336031}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e7b598b9d8509d64abb9fdaf07fa3f6e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: PurrNet.Runtime::PurrNet.NetworkAnimator
-  _isSetup: 0
-  _prefabId: -2147483648
-  _componentIndex: -2147483648
-  _shouldBePooled: 0
-  _parent: {fileID: 0}
-  _invertedPathToNearestParent: 
-  _directChildren: []
-  _networkRules: {fileID: 0}
-  _visitiblityRules: {fileID: 0}
-  _animator: {fileID: 8203273544469095326}
-  _ownerAuth: 1
-  _autoSyncParameters: 1
-  _dontSyncParameters: []
 --- !u!1001 &2359169849674964495
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -470,16 +447,53 @@ PrefabInstance:
       propertyPath: m_Controller
       value: 
       objectReference: {fileID: 9100000, guid: 6c2c5bf0117ccb84893783cdb51a7c1b, type: 2}
+    - target: {fileID: 5866666021909216657, guid: 2faa610713d3b3c439473daa55e8c60a, type: 3}
+      propertyPath: m_CullingMode
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5866666021909216657, guid: 2faa610713d3b3c439473daa55e8c60a, type: 3}
+      propertyPath: m_ApplyRootMotion
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 2faa610713d3b3c439473daa55e8c60a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5085655132456125141}
   m_SourcePrefab: {fileID: 100100000, guid: 2faa610713d3b3c439473daa55e8c60a, type: 3}
 --- !u!4 &2825952725039938020 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 2faa610713d3b3c439473daa55e8c60a, type: 3}
   m_PrefabInstance: {fileID: 2359169849674964495}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &3205469656982561630 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 2faa610713d3b3c439473daa55e8c60a, type: 3}
+  m_PrefabInstance: {fileID: 2359169849674964495}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &5085655132456125141
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3205469656982561630}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 44611b99b4a7c024f85e962cbce4c82e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerAnimDriver
+  anim: {fileID: 8203273544469095326}
+  motionRoot: {fileID: 3902103150374974047}
+  moveXParam: MoveX
+  moveYParam: MoveY
+  maxSpeed: 6
+  smooth: 12
+  speedDeadzone: 0.03
+  debugLogs: 0
+  debugEveryNFrames: 120
 --- !u!95 &8203273544469095326 stripped
 Animator:
   m_CorrespondingSourceObject: {fileID: 5866666021909216657, guid: 2faa610713d3b3c439473daa55e8c60a, type: 3}

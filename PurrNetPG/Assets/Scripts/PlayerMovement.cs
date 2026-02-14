@@ -5,71 +5,102 @@ using UnityEngine.InputSystem;
 public class PlayerMovement : PredictedIdentity<PlayerMovement.Input, PlayerMovement.State>
 {
     [Header("Refs")]
-    [SerializeField] private PredictedRigidbody _predictedRb;
-    [SerializeField] private PlayerInput _playerInput; // assign PlayerInput on the prefab (recommended)
+    [SerializeField] private PredictedRigidbody predictedRb;
+    [SerializeField] private PlayerInput playerInput;
 
     [Header("Movement")]
     [SerializeField] private float moveSpeed = 6f;
     [SerializeField] private float accel = 25f;
+    [SerializeField] private float brake = 40f;
+    [SerializeField] private float stopEpsilon = 0.05f;
+    [SerializeField] private float inputDeadzone = 0.05f;
 
-    private Rigidbody _rb;
-    private Vector2 _moveInput;
+    private Rigidbody rb;
+    private Vector2 moveInput;
+    private bool lastController;
 
-    void Awake()
+    // Exposed for PlayerAnimDriver (works for owner + proxies)
+    public Vector2 LastSimulatedMove { get; private set; }
+
+    private void Awake()
     {
-        if (_predictedRb == null)
-            _predictedRb = GetComponentInChildren<PredictedRigidbody>();
+        if (!predictedRb) predictedRb = GetComponentInChildren<PredictedRigidbody>(true);
+        if (!playerInput) playerInput = GetComponentInChildren<PlayerInput>(true);
 
-        if (_playerInput == null)
-            _playerInput = GetComponentInChildren<PlayerInput>(true);
+        rb = predictedRb ? predictedRb.GetComponent<Rigidbody>() : GetComponentInChildren<Rigidbody>(true);
 
-        // PredictedRigidbody sits on (or references) a Rigidbody. Grab it.
-        _rb = _predictedRb != null
-            ? _predictedRb.GetComponent<Rigidbody>()       // if PredictedRigidbody is on same GO as RB
-            : GetComponentInChildren<Rigidbody>();         // fallback
-
-        if (_rb == null)
-            Debug.LogError("No Rigidbody found. Assign PredictedRigidbody or add a Rigidbody.");
+        if (!predictedRb) Debug.LogError("[PM] Missing PredictedRigidbody.", this);
+        if (!rb) Debug.LogError("[PM] Missing Rigidbody.", this);
+        if (!playerInput) Debug.LogError("[PM] Missing PlayerInput.", this);
     }
 
-    void Start()
-    {
-        // IMPORTANT: only the controlling instance should have local input enabled
-        if (_playerInput != null)
-            _playerInput.enabled = isController;
-    }
-
-    // Called by PlayerInput (Invoke Unity Events)
+    // PlayerInput (Invoke Unity Events) -> Move
     public void OnMove(InputAction.CallbackContext ctx)
     {
-        // extra safety: ignore input if this isn't the controller
         if (!isController) return;
-        _moveInput = ctx.ReadValue<Vector2>();
+        moveInput = ctx.ReadValue<Vector2>();
     }
 
     protected override void GetFinalInput(ref Input input)
     {
-        // only controller provides input, everyone else sends zero
-        input.direction = isController ? _moveInput : Vector2.zero;
+        Vector2 d = isController ? moveInput : Vector2.zero;
+
+        float dz2 = inputDeadzone * inputDeadzone;
+        if (d.sqrMagnitude < dz2) d = Vector2.zero;
+
+        if (d.sqrMagnitude > 1f) d.Normalize();
+
+        input.direction = d;
     }
 
     protected override void Simulate(Input input, ref State state, float delta)
     {
-        if (_rb == null) return;
+        if (!rb) return;
 
-        Vector3 local = new Vector3(input.direction.x, 0f, input.direction.y);
-        Vector3 wish = transform.TransformDirection(local);
-        wish.y = 0f;
+        // cache the input that actually drove this tick (owner + proxies)
+        LastSimulatedMove = input.direction;
 
-        Vector3 v = _rb.linearVelocity;
+        Vector3 v = rb.linearVelocity;
         Vector3 horiz = new Vector3(v.x, 0f, v.z);
 
-        Vector3 targetHoriz = wish.sqrMagnitude > 0.0001f ? wish.normalized * moveSpeed : Vector3.zero;
-        Vector3 newHoriz = Vector3.MoveTowards(horiz, targetHoriz, accel * delta);
+        bool hasInput = input.direction.sqrMagnitude > 0.0001f;
 
-        _rb.linearVelocity = new Vector3(newHoriz.x, v.y, newHoriz.z);
+        if (hasInput)
+        {
+            Vector3 local = new Vector3(input.direction.x, 0f, input.direction.y);
+            Vector3 wish = transform.TransformDirection(local);
+            wish.y = 0f;
+
+            Vector3 targetHoriz = wish.normalized * moveSpeed;
+            horiz = Vector3.MoveTowards(horiz, targetHoriz, accel * delta);
+        }
+        else
+        {
+            horiz = Vector3.MoveTowards(horiz, Vector3.zero, brake * delta);
+
+            float eps2 = stopEpsilon * stopEpsilon;
+            if (horiz.sqrMagnitude < eps2)
+                horiz = Vector3.zero;
+        }
+
+        rb.linearVelocity = new Vector3(horiz.x, v.y, horiz.z);
+    }
+
+    private void LateUpdate()
+    {
+        // Only controller should have PlayerInput enabled (important for clones)
+        if (playerInput && lastController != isController)
+        {
+            lastController = isController;
+            playerInput.enabled = isController;
+        }
     }
 
     public struct State : IPredictedData<State> { public void Dispose() { } }
-    public struct Input : IPredictedData { public Vector2 direction; public void Dispose() { } }
+
+    public struct Input : IPredictedData
+    {
+        public Vector2 direction;
+        public void Dispose() { }
+    }
 }
