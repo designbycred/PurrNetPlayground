@@ -408,7 +408,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerJump
   mode: 0
-  jumpHeight: 4
+  jumpHeight: 2
   gravity: -20
   groundedStick: -2
   groundMask:
